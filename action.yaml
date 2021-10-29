@@ -1,4 +1,4 @@
-name: 'Rancher Deploy Action'
+name: 'Rancher Deploy'
 description: 'Action to deploy docker image in rancher'
 author: 'Giau. Tran Minh'
 branding:
