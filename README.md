@@ -22,20 +22,14 @@
 
 **Required** URL TO YOUR DOCKER IMAGE (Ex: AWS or DOCKER REGISTRY).
 
-### `DOCKER_IMAGE_LATEST`
-
-**Optional** URL TO YOUR DOCKER IMAGE WITH LATEST TAG.
-
-
 ## Example usage
 `````
   
 - name: Rancher Deploy
-  uses: yantadeu/rancher-deploy-action@v0.0.2
+  uses: giautm/rancher-deploy-action@v0.1.0
   env:
     RANCHER_ACCESS_KEY: 'XXXXXXX'
     RANCHER_SECRET_KEY: 'XXXXXXX'
     RANCHER_URL_API: 'https://rancher.YOUR-DOMAIN.COM/v3'
     SERVICE_NAME: 'myProject'
     DOCKER_IMAGE: 'xxxxxxx:yyyyyyyy'
-    DOCKER_IMAGE_LATEST: 'xxxxxxx:latest'
