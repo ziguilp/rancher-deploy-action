@@ -26,7 +26,7 @@
 `````
   
 - name: Rancher Deploy
-  uses: giautm/rancher-deploy-action@v0.1.0
+  uses: giautm/rancher-deploy-action@v0.1.3
   env:
     RANCHER_ACCESS_KEY: 'XXXXXXX'
     RANCHER_SECRET_KEY: 'XXXXXXX'
