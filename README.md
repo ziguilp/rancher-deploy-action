@@ -22,6 +22,10 @@
 
 **Required** URL TO YOUR DOCKER IMAGE (Ex: AWS or DOCKER REGISTRY).
 
+### `NAMESPACE_ID`
+
+**Optional** ID OF THE NAMESPACE.
+
 ## Example usage
 `````
   
@@ -33,3 +37,4 @@
     RANCHER_URL_API: 'https://rancher.YOUR-DOMAIN.COM/v3'
     SERVICE_NAME: 'myProject'
     DOCKER_IMAGE: 'xxxxxxx:yyyyyyyy'
+    NAMESPACE_ID: 'xxxxxxxx'

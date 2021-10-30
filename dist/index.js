@@ -6244,6 +6244,7 @@ const { default: fetch } = __nccwpck_require__(475);
   const rancherSecretKey = process.env['RANCHER_SECRET_KEY'];
   const rancherUrlApi = process.env['RANCHER_URL_API'];
   const dockerImage = process.env['DOCKER_IMAGE'];
+  const namespaceId = process.env['NAMESPACE_ID'];
   const serviceName =process.env['SERVICE_NAME'];
 
   const token = Buffer.from(rancherAccessKey + ':' + rancherSecretKey).toString('base64')
@@ -6302,7 +6303,9 @@ const { default: fetch } = __nccwpck_require__(475);
   const { data: projects } = await fetchProjectsAsync()
   for (const project of projects) {
     const { data: workloads } = await fetchProjectWorkloadsAsync(project.id)
-    const workload = workloads.find(({ name }) => name === serviceName)
+    const workload = workloads.find(({ name, namespaceId: nsId }) => 
+      name === serviceName && (!namespaceId || namespaceId === nsId)
+    )
     if (workload) {
       const { links, namespaceId } = workload
       await changeImageAsync(links.self, namespaceId)
