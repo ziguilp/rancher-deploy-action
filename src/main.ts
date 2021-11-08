@@ -2,7 +2,7 @@ import {getInputs} from './context';
 import Rancher from './rancher';
 
 (async () => {
-  const {rancher, tags, serviceName, namespaceId} = await getInputs();
+  const {rancher, dockerImage, serviceName, namespaceId} = await getInputs();
 
   const client = new Rancher(rancher.urlApi, rancher.accessKey, rancher.secretKey);
 
@@ -14,7 +14,7 @@ import Rancher from './rancher';
       const {links, namespaceId} = workload;
       await client.changeImageAsync(links.self, namespaceId, {
         name: serviceName,
-        image: tags[0]
+        image: dockerImage
       });
 
       return;

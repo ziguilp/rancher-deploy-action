@@ -17,8 +17,8 @@ inputs:
   serviceName:
     description: "Name of your service on rancher cluster what you want deploy"
     required: true
-  tags:
-    description: "List of tags"
+  dockerImage:
+    description: "Docker Image ID"
     required: true
   namespaceId:
     description: "ID of the namespace"
