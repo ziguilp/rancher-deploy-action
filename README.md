@@ -26,7 +26,7 @@
 
 ```yml
 - name: Rancher Deploy
-  uses: giautm/rancher-deploy-action@v0.1.3
+  uses: giautm/rancher-deploy-action@v0.1.9
   with:
     rancherUrlApi: ${{ secrets.RANCHER_URL_API }}
     rancherAccessKey: ${{ secrets.RANCHER_ACCESS_KEY}}
