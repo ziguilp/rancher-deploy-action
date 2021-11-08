@@ -4,6 +4,10 @@ author: 'Giau. Tran Minh'
 branding:
   icon: 'check'
   color: 'gray-dark'
+inputs:
+  tags:
+    description: "List of tags"
+    required: false
 runs:
   using: 'node12'
   main: 'dist/index.js'

@@ -1,6 +1,6 @@
 {
   "name": "rancher-deploy-action",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Action to deploy docker image in rancher",
   "main": "dist/index.js",
   "scripts": {
@@ -18,7 +18,11 @@
   },
   "homepage": "https://github.com/giautm/rancher-deploy-action#readme",
   "devDependencies": {
+    "@actions/core": "1.6.0",
     "@vercel/ncc": "0.31.1",
     "node-fetch": "3.0.0"
+  },
+  "dependencies": {
+    "csv-parse": "4.16.3"
   }
 }

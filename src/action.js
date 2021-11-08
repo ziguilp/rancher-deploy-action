@@ -1,10 +1,12 @@
 const { default: fetch } = require('node-fetch');
+import { getInputs } from './context'
 
 (async () => {
+  const { tags } = await getInputs()
   const rancherAccessKey = process.env['RANCHER_ACCESS_KEY'];
   const rancherSecretKey = process.env['RANCHER_SECRET_KEY'];
   const rancherUrlApi = process.env['RANCHER_URL_API'];
-  const dockerImage = process.env['DOCKER_IMAGE'];
+  const dockerImage = tags[0];
   const namespaceId = process.env['NAMESPACE_ID'];
   const serviceName =process.env['SERVICE_NAME'];
 

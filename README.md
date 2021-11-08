@@ -18,10 +18,6 @@
 
 **Required** NAME OF YOUR SERVICE ON RANCHER CLUSTER WHAT YOU WANT DEPLOY.
 
-### `DOCKER_IMAGE`
-
-**Required** URL TO YOUR DOCKER IMAGE (Ex: AWS or DOCKER REGISTRY).
-
 ### `NAMESPACE_ID`
 
 **Optional** ID OF THE NAMESPACE.
@@ -31,6 +27,8 @@
   
 - name: Rancher Deploy
   uses: giautm/rancher-deploy-action@v0.1.3
+  tags:
+    - helloworld:dev
   env:
     RANCHER_ACCESS_KEY: 'XXXXXXX'
     RANCHER_SECRET_KEY: 'XXXXXXX'
