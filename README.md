@@ -23,16 +23,15 @@
 **Optional** ID OF THE NAMESPACE.
 
 ## Example usage
-`````
-  
+
+```yml
 - name: Rancher Deploy
   uses: giautm/rancher-deploy-action@v0.1.3
   with:
-    rancherUrlApi: 'https://rancher.YOUR-DOMAIN.COM/v3'
-    rancherAccessKey: 'XXXXXXX'
-    rancherSecretKey: 'XXXXXXX'
+    rancherUrlApi: ${{ secrets.RANCHER_URL_API }}
+    rancherAccessKey: ${{ secrets.RANCHER_ACCESS_KEY}}
+    rancherSecretKey: ${{ secrets.RANCHER_SECRET_KEY }}
+    dockerImage: ${{ fromJSON(steps.docker-meta.outputs.json).tags[0] }}
     serviceName: 'myProject'
-    tags:
-      - helloworld:dev
     namespaceId: 'xxxxxxxx'
-
+```
