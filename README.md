@@ -1,24 +1,24 @@
 # Action for Github to deploy image in Rancher using Rancher API
 
-## Envs
+## Inputs
 
-### `RANCHER_ACCESS_KEY`
-
-**Required** API Access key created in Rancher.
-
-### `RANCHER_SECRET_KEY`
-
-**Required** API Secret key created in Rancher.
-
-### `RANCHER_URL_API`
+### `rancherUrlApi`
 
 **Required** API Url of your rancher project workload.
 
-### `SERVICE_NAME`
+### `rancherAccessKey`
+
+**Required** API Access key created in Rancher.
+
+### `rancherSecretKey`
+
+**Required** API Secret key created in Rancher.
+
+### `serviceName`
 
 **Required** NAME OF YOUR SERVICE ON RANCHER CLUSTER WHAT YOU WANT DEPLOY.
 
-### `NAMESPACE_ID`
+### `namespaceId`
 
 **Optional** ID OF THE NAMESPACE.
 
@@ -27,12 +27,12 @@
   
 - name: Rancher Deploy
   uses: giautm/rancher-deploy-action@v0.1.3
-  tags:
-    - helloworld:dev
-  env:
-    RANCHER_ACCESS_KEY: 'XXXXXXX'
-    RANCHER_SECRET_KEY: 'XXXXXXX'
-    RANCHER_URL_API: 'https://rancher.YOUR-DOMAIN.COM/v3'
-    SERVICE_NAME: 'myProject'
-    DOCKER_IMAGE: 'xxxxxxx:yyyyyyyy'
-    NAMESPACE_ID: 'xxxxxxxx'
+  with:
+    rancherUrlApi: 'https://rancher.YOUR-DOMAIN.COM/v3'
+    rancherAccessKey: 'XXXXXXX'
+    rancherSecretKey: 'XXXXXXX'
+    serviceName: 'myProject'
+    tags:
+      - helloworld:dev
+    namespaceId: 'xxxxxxxx'
+

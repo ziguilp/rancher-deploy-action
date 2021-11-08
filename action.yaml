@@ -5,8 +5,23 @@ branding:
   icon: 'check'
   color: 'gray-dark'
 inputs:
+  rancherUrlApi:
+    description: "API Url of your rancher project workload"
+    required: true
+  rancherAccessKey:
+    description: "API Access key created in Rancher"
+    required: true
+  rancherSecretKey:
+    description: "API Secret key created in Rancher"
+    required: true
+  serviceName:
+    description: "Name of your service on rancher cluster what you want deploy"
+    required: true
   tags:
     description: "List of tags"
+    required: true
+  namespaceId:
+    description: "ID of the namespace"
     required: false
 runs:
   using: 'node12'
