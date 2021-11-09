@@ -1,3 +1,5 @@
+import * as core from '@actions/core';
+
 import {getInputs} from './context';
 import Rancher from './rancher';
 
@@ -20,4 +22,6 @@ import Rancher from './rancher';
       return;
     }
   }
-})().catch(console.error);
+})().catch(err => {
+  core.setFailed(err.message);
+});
