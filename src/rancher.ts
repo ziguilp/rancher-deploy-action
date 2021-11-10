@@ -5,6 +5,51 @@ type DeploymentConfig = {
   name: string;
 };
 
+type WorkloadActions = {
+  redeploy: string;
+  pause?: string;
+  resume?: string;
+  rollback?: string;
+};
+
+type WorkloadLinks = {
+  remove: string;
+  revisions: string;
+  self: string;
+  update: string;
+  yaml: string;
+};
+
+type Container = {
+  image: string;
+  imagePullPolicy: 'Always';
+  name: string;
+};
+
+type Workload = {
+  id: string;
+  actions: WorkloadActions;
+  baseType: 'workload';
+  containers: Container[];
+  created: string;
+  links: WorkloadLinks;
+  name: string;
+  namespaceId: string;
+  paused: boolean;
+  projectId: string;
+};
+
+type ProjectLinks = {
+  workloads: string;
+};
+
+type Project = {
+  id: string;
+  name: string;
+  namespaceId: string | null;
+  links: ProjectLinks;
+};
+
 class Rancher {
   private readonly headers: any;
 
@@ -13,7 +58,7 @@ class Rancher {
     this.headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      Authorization: 'Basic ' + token
+      Authorization: 'Basic ' + token,
     };
   }
 
@@ -23,20 +68,27 @@ class Rancher {
       headers: this.headers
     });
 
-    return req.json();
+    return req.json() as Promise<{
+      data: Project[];
+    }>;
   }
 
-  async fetchProjectWorkloadsAsync(projectId: string) {
-    const req = await fetch(`${this.rancherUrlApi}/projects/${projectId}/workloads`, {
+  async fetchProjectWorkloadsAsync(project: Project) {
+    const {links} = project;
+    const req = await fetch(links.workloads, {
       method: 'GET',
       headers: this.headers
     });
 
-    return req.json();
+    return req.json() as Promise<{
+      data: Workload[];
+    }>;
   }
 
-  async changeImageAsync(workloadURL: string, namespaceId: string, config: DeploymentConfig) {
-    const req = await fetch(workloadURL, {method: 'GET', headers: this.headers});
+  async changeImageAsync(wl: Workload, config: DeploymentConfig): Promise<Workload> {
+    const {links} = wl;
+
+    const req = await fetch(links.self, {method: 'GET', headers: this.headers});
     if (req.status === 404) {
       const data = {
         containers: [
@@ -45,24 +97,29 @@ class Rancher {
             imagePullPolicy: 'Always'
           }
         ],
-        namespaceId,
-        name: config.name
+        name: config.name,
+        namespaceId: wl.namespaceId
       };
 
-      await fetch(workloadURL, {
+      const req2 = await fetch(links.update, {
         method: 'POST',
         headers: this.headers,
         body: JSON.stringify(data)
       });
+
+      return req2.json() as Promise<Workload>;
     } else {
       const data: any = await req.json();
       data.containers[0].image = config.image;
 
-      await fetch(workloadURL + '?action=redeploy', {
+      const {actions} = data;
+      const req2 = await fetch(actions.redeploy, {
         method: 'PUT',
         headers: this.headers,
         body: JSON.stringify(data)
       });
+
+      return req2.json() as Promise<Workload>;
     }
   }
 }

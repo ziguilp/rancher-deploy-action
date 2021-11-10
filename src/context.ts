@@ -12,6 +12,19 @@ export type Inputs = {
 };
 
 export async function getInputs(): Promise<Inputs> {
+  if (!process.env.GITHUB_ACTIONS) {
+    return {
+      rancher: {
+        accessKey: process.env['RANCHER_ACCESS_KEY'] || '',
+        secretKey: process.env['RANCHER_SECRET_KEY'] || '',
+        urlApi: process.env['RANCHER_URL_API'] || ''
+      },
+      serviceName: process.env['SERVICE_NAME'] || '',
+      dockerImage: process.env['DOCKER_IMAGE'] || '',
+      namespaceId: process.env['NAMESPACE_ID']
+    };
+  }
+
   return {
     rancher: {
       accessKey: core.getInput('rancherAccessKey'),

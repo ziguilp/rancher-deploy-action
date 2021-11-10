@@ -39,6 +39,18 @@ exports.getInputs = void 0;
 const core = __importStar(__nccwpck_require__(186));
 function getInputs() {
     return __awaiter(this, void 0, void 0, function* () {
+        if (!process.env.GITHUB_ACTIONS) {
+            return {
+                rancher: {
+                    accessKey: process.env['RANCHER_ACCESS_KEY'] || '',
+                    secretKey: process.env['RANCHER_SECRET_KEY'] || '',
+                    urlApi: process.env['RANCHER_URL_API'] || ''
+                },
+                serviceName: process.env['SERVICE_NAME'] || '',
+                dockerImage: process.env['DOCKER_IMAGE'] || '',
+                namespaceId: process.env['NAMESPACE_ID']
+            };
+        }
         return {
             rancher: {
                 accessKey: core.getInput('rancherAccessKey'),
@@ -101,16 +113,22 @@ const rancher_1 = __importDefault(__nccwpck_require__(604));
     const client = new rancher_1.default(rancher.urlApi, rancher.accessKey, rancher.secretKey);
     const { data: projects } = yield client.fetchProjectsAsync();
     for (const project of projects) {
-        const { data: workloads } = yield client.fetchProjectWorkloadsAsync(project.id);
+        const { data: workloads } = yield client.fetchProjectWorkloadsAsync(project);
         const workload = workloads.find(({ name, namespaceId: nsId }) => name === serviceName && (!namespaceId || namespaceId === nsId));
         if (workload) {
-            const { links, namespaceId } = workload;
-            yield client.changeImageAsync(links.self, namespaceId, {
+            const result = yield client.changeImageAsync(workload, {
                 name: serviceName,
                 image: dockerImage
             });
+            core.info(`Image changed for ${result.id}`);
             return;
         }
+    }
+    if (namespaceId) {
+        throw new Error(`Couldn't found workload "${serviceName}" in namespace "${namespaceId}"`);
+    }
+    else {
+        throw new Error(`Couldn't found workload "${serviceName}"`);
     }
 }))().catch(err => {
     core.setFailed(err.message);
@@ -145,7 +163,7 @@ class Rancher {
         this.headers = {
             Accept: 'application/json',
             'Content-Type': 'application/json',
-            Authorization: 'Basic ' + token
+            Authorization: 'Basic ' + token,
         };
     }
     fetchProjectsAsync() {
@@ -157,40 +175,45 @@ class Rancher {
             return req.json();
         });
     }
-    fetchProjectWorkloadsAsync(projectId) {
+    fetchProjectWorkloadsAsync(project) {
         return __awaiter(this, void 0, void 0, function* () {
-            const req = yield (0, node_fetch_1.default)(`${this.rancherUrlApi}/projects/${projectId}/workloads`, {
+            const { links } = project;
+            const req = yield (0, node_fetch_1.default)(links.workloads, {
                 method: 'GET',
                 headers: this.headers
             });
             return req.json();
         });
     }
-    changeImageAsync(workloadURL, namespaceId, config) {
+    changeImageAsync(wl, config) {
         return __awaiter(this, void 0, void 0, function* () {
-            const req = yield (0, node_fetch_1.default)(workloadURL, { method: 'GET', headers: this.headers });
+            const { links } = wl;
+            const req = yield (0, node_fetch_1.default)(links.self, { method: 'GET', headers: this.headers });
             if (req.status === 404) {
                 const data = {
                     containers: [
                         Object.assign(Object.assign({}, config), { imagePullPolicy: 'Always' })
                     ],
-                    namespaceId,
-                    name: config.name
+                    name: config.name,
+                    namespaceId: wl.namespaceId
                 };
-                yield (0, node_fetch_1.default)(workloadURL, {
+                const req2 = yield (0, node_fetch_1.default)(links.update, {
                     method: 'POST',
                     headers: this.headers,
                     body: JSON.stringify(data)
                 });
+                return req2.json();
             }
             else {
                 const data = yield req.json();
                 data.containers[0].image = config.image;
-                yield (0, node_fetch_1.default)(workloadURL + '?action=redeploy', {
+                const { actions } = data;
+                const req2 = yield (0, node_fetch_1.default)(actions.redeploy, {
                     method: 'PUT',
                     headers: this.headers,
                     body: JSON.stringify(data)
                 });
+                return req2.json();
             }
         });
     }

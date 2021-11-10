@@ -8,19 +8,25 @@ import Rancher from './rancher';
 
   const client = new Rancher(rancher.urlApi, rancher.accessKey, rancher.secretKey);
 
-  const {data: projects}: any = await client.fetchProjectsAsync();
+  const {data: projects} = await client.fetchProjectsAsync();
   for (const project of projects) {
-    const {data: workloads}: any = await client.fetchProjectWorkloadsAsync(project.id);
+    const {data: workloads} = await client.fetchProjectWorkloadsAsync(project);
     const workload = workloads.find(({name, namespaceId: nsId}) => name === serviceName && (!namespaceId || namespaceId === nsId));
     if (workload) {
-      const {links, namespaceId} = workload;
-      await client.changeImageAsync(links.self, namespaceId, {
+      const result = await client.changeImageAsync(workload, {
         name: serviceName,
         image: dockerImage
       });
 
+      core.info(`Image changed for ${result.id}`);
       return;
     }
+  }
+
+  if (namespaceId) {
+    throw new Error(`Couldn't found workload "${serviceName}" in namespace "${namespaceId}"`);
+  } else {
+    throw new Error(`Couldn't found workload "${serviceName}"`);
   }
 })().catch(err => {
   core.setFailed(err.message);
