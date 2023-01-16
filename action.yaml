@@ -1,12 +1,12 @@
 name: 'Docker Image Deploy In Rancher1.6'
 description: 'Action to deploy docker image in rancher1.6'
-author: 'Giau. Tran Minh & turbo'
+author: 'turbo'
 branding:
   icon: 'check'
   color: 'gray-dark'
 inputs:
-  rancherUrlApi:
-    description: "API Url of your rancher project workload"
+  serviceInfoApiUrl:
+    description: "API Url of your rancher servcie , you can get in rancher UI,like: https://rancher.test.com/v2-beta/projects/1a22/services/1s33"
     required: true
   rancherAccessKey:
     description: "API Access key created in Rancher"
@@ -14,15 +14,9 @@ inputs:
   rancherSecretKey:
     description: "API Secret key created in Rancher"
     required: true
-  serviceName:
-    description: "Name of your service on rancher cluster what you want deploy"
-    required: true
   dockerImage:
-    description: "Docker Image"
+    description: "Docker Image, like: test/nginx:latest"
     required: true
-  projectName:
-    description: "Name of project"
-    required: false
 runs:
   using: 'node12'
   main: 'dist/index.js'

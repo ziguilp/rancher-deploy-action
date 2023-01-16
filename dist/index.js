@@ -40,7 +40,7 @@ exports.getInputs = void 0;
  * @Author        : turbo 664120459@qq.com
  * @Date          : 2023-01-16 11:47:35
  * @LastEditors   : turbo 664120459@qq.com
- * @LastEditTime  : 2023-01-16 13:10:27
+ * @LastEditTime  : 2023-01-16 17:39:16
  * @FilePath      : /rancher-deploy-action/src/context.ts
  * @Description   :
  *
@@ -54,22 +54,18 @@ function getInputs() {
                 rancher: {
                     accessKey: process.env['RANCHER_ACCESS_KEY'] || '',
                     secretKey: process.env['RANCHER_SECRET_KEY'] || '',
-                    urlApi: process.env['RANCHER_URL_API'] || ''
+                    serviceInfoApiUrl: process.env['RANCHER_SERVICE_INFO_API_URL'] || ''
                 },
-                serviceName: process.env['SERVICE_NAME'] || '',
                 dockerImage: process.env['DOCKER_IMAGE'] || '',
-                projectName: process.env['PROJECT_NAME'] || ''
             };
         }
         return {
             rancher: {
                 accessKey: core.getInput('rancherAccessKey'),
                 secretKey: core.getInput('rancherSecretKey'),
-                urlApi: core.getInput('rancherUrlApi')
+                serviceInfoApiUrl: core.getInput('serviceInfoApiUrl')
             },
-            serviceName: core.getInput('serviceName'),
-            dockerImage: core.getInput('dockerImage'),
-            projectName: core.getInput('projectName')
+            dockerImage: core.getInput('dockerImage')
         };
     });
 }
@@ -119,7 +115,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
  * @Author        : turbo 664120459@qq.com
  * @Date          : 2023-01-16 11:47:35
  * @LastEditors   : turbo 664120459@qq.com
- * @LastEditTime  : 2023-01-16 16:51:50
+ * @LastEditTime  : 2023-01-16 18:27:16
  * @FilePath      : /rancher-deploy-action/src/main.ts
  * @Description   :
  *
@@ -129,31 +125,14 @@ const core = __importStar(__nccwpck_require__(186));
 const context_1 = __nccwpck_require__(842);
 const rancher_1 = __importDefault(__nccwpck_require__(604));
 (() => __awaiter(void 0, void 0, void 0, function* () {
-    const { rancher, dockerImage, projectName, serviceName } = yield (0, context_1.getInputs)();
-    const client = new rancher_1.default(rancher.urlApi, rancher.accessKey, rancher.secretKey);
-    const { data: projects } = yield client.fetchProjectsAsync();
-    for (const project of projects) {
-        if (project.name != projectName)
-            continue;
-        const { data: services } = yield client.fetchProjectServicesAsync(project);
-        const service = services.find(({ name }) => name === serviceName);
-        if (service) {
-            const result = yield client.changeImageAsync(service, {
-                name: serviceName,
-                image: dockerImage
-            });
-            core.info(`${projectName}-${serviceName} upgrade image to: ${result.launchConfig.imageUuid}`);
-            core.info(`Upgrade done， please confirm it in rancher UI`);
-            core.setOutput('projectName', projectName);
-            core.setOutput('serviceName', serviceName);
-            core.setOutput('dockerImage', dockerImage);
-            core.setOutput('status', 'success');
-            return;
-        }
-        else {
-            throw new Error(`Couldn't found service "${serviceName}" in project "${projectName}"`);
-        }
-    }
+    const { rancher, dockerImage } = yield (0, context_1.getInputs)();
+    const client = new rancher_1.default(rancher.serviceInfoApiUrl, rancher.accessKey, rancher.secretKey);
+    const result = yield client.upgradeServiceByNewDockerImage(dockerImage);
+    core.info(`Success:upgrade image to: ${result.launchConfig.imageUuid}`);
+    core.info(`Upgrade done， please confirm it in rancher UI`);
+    core.setOutput('envId', client.rancherEnvId);
+    core.setOutput('serviceId', client.rancherServiceId);
+    core.setOutput('dockerImage', dockerImage);
 }))().catch(err => {
     core.setFailed(err.message);
 });
@@ -183,7 +162,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
  * @Author        : turbo 664120459@qq.com
  * @Date          : 2023-01-16 11:47:35
  * @LastEditors   : turbo 664120459@qq.com
- * @LastEditTime  : 2023-01-16 16:42:51
+ * @LastEditTime  : 2023-01-16 18:28:33
  * @FilePath      : /rancher-deploy-action/src/rancher.ts
  * @Description   :
  *
@@ -191,8 +170,16 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
  */
 const node_fetch_1 = __importDefault(__nccwpck_require__(843));
 class Rancher {
-    constructor(rancherUrlApi, rancherAccessKey, rancherSecretKey) {
-        this.rancherUrlApi = rancherUrlApi;
+    constructor(rancherServiceUrlApi, rancherAccessKey, rancherSecretKey) {
+        this.rancherServiceUrlApi = rancherServiceUrlApi;
+        const ma = rancherServiceUrlApi.match(/^(https?:\/\/.*?\/)(v1|v2\-beta)\/projects\/([a-z0-9]+)\/services\/([a-z0-9]+)$/i);
+        if (!ma) {
+            throw new Error(`Error: Format of RancherServiceUrlApi:${rancherServiceUrlApi} is wrong`);
+        }
+        this.rancherServiceUrl = rancherServiceUrlApi;
+        this.rancherApi = ma[1] + ma[2];
+        this.rancherEnvId = ma[3];
+        this.rancherServiceId = ma[4];
         const token = Buffer.from(rancherAccessKey + ':' + rancherSecretKey).toString('base64');
         this.headers = {
             Accept: 'application/json',
@@ -200,41 +187,51 @@ class Rancher {
             Authorization: 'Basic ' + token,
         };
     }
+    /**
+     * 读取当前APIkey下的所有环境
+     * @returns
+     */
     fetchProjectsAsync() {
         return __awaiter(this, void 0, void 0, function* () {
-            const req = yield (0, node_fetch_1.default)(`${this.rancherUrlApi}/projects`, {
+            const req = yield (0, node_fetch_1.default)(`${this.rancherApi}/projects`, {
                 method: 'GET',
                 headers: this.headers
             });
             return req.json();
         });
     }
+    /**
+     * 读取当前环境的所有服务
+     * @param project
+     * @returns
+     */
     fetchProjectServicesAsync(project) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { links } = project;
-            const req = yield (0, node_fetch_1.default)(links.services, {
+            const req = yield (0, node_fetch_1.default)(`${this.rancherApi}/projects/${this.rancherEnvId}/services`, {
                 method: 'GET',
                 headers: this.headers
             });
             return req.json();
         });
     }
-    changeImageAsync(wl, config) {
+    /**
+     * 升级服务
+     */
+    upgradeServiceByNewDockerImage(dockerImage) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { links } = wl;
-            const req = yield (0, node_fetch_1.default)(links.self, { method: 'GET', headers: this.headers });
+            const req = yield (0, node_fetch_1.default)(this.rancherServiceUrl, { method: 'GET', headers: this.headers });
             if (req.status === 404) {
-                throw new Error(`Can not get service's info : ${wl.name}`);
+                throw new Error(`Can not get service's info : ${this.rancherServiceUrl}`);
             }
             const data = yield req.json();
             if (!data.upgrade) {
-                throw new Error(`Can not upgrade service: ${wl.name}`);
+                throw new Error(`Can not upgrade service: ${this.rancherServiceUrl}`);
             }
             const { actions } = data;
-            const newImageName = 'docker:' + config.image;
+            const newImageName = 'docker:' + dockerImage;
             try {
                 if (data.upgrade.inServiceStrategy.launchConfig.imageUuid.split(":")[1] !== newImageName.split(":")[1]) {
-                    throw new Error(`Image registry changed of Service:${wl.name},Please upgrade Mannal`);
+                    throw new Error(`Can't upgrade service which image registry has been changed:${this.rancherServiceUrl},Please upgrade Mannal`);
                 }
             }
             catch (error) {
@@ -249,7 +246,7 @@ class Rancher {
                     toServiceStrategy: data.upgrade.toServiceStrategy || null
                 })
             });
-            if (req2.status > 200 && req2.status < 400) {
+            if (req2.status >= 200 && req2.status < 400) {
                 return req2.json();
             }
             try {

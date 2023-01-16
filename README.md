@@ -3,9 +3,9 @@
 
 ## Inputs
 
-### `rancherUrlApi`
+### `serviceInfoApiUrl`
 
-**Required** API Url of your rancher project workload.
+**Required** Service API Url of your rancher service, you can get it in Rancher UI ,like: https://rancher.test.com/v2-beta/projects/1a22/services/1s33.
 
 ### `rancherAccessKey`
 
@@ -15,24 +15,19 @@
 
 **Required** API Secret key created in Rancher.
 
-### `serviceName`
 
-**Required** NAME OF YOUR SERVICE ON RANCHER CLUSTER WHAT YOU WANT DEPLOY.
+### `dockerImage`
 
-### `projectName`
-
-**Optional** 应用名称.
+**Optional** docker image, like: test/nginx:latest
 
 ## Example usage
 
 ```yml
 - name: Rancher Deploy
-  uses: ziguilp/docker-image-deploy-in-rancher1.6@v0.1
+  uses: ziguilp/rancher-deploy-action@v0.3
   with:
-    rancherUrlApi: ${{ secrets.RANCHER_URL_API }}
+    serviceInfoApiUrl: ${{ secrets.RANCHER_SERVICE_INFO_API_URL }} #通过rancherUI查看服务的API信息, 例如： 'https://rancher.test.com/v2-beta/projects/1a22/services/1s33' #
     rancherAccessKey: ${{ secrets.RANCHER_ACCESS_KEY}}
     rancherSecretKey: ${{ secrets.RANCHER_SECRET_KEY }}
     dockerImage: ${{ fromJSON(steps.docker-meta.outputs.json).tags[0] }}
-    serviceName: 'server'
-    projectName: 'myProject'
 ```

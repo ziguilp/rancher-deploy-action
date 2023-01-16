@@ -2,7 +2,7 @@
  * @Author        : turbo 664120459@qq.com
  * @Date          : 2023-01-16 11:47:35
  * @LastEditors   : turbo 664120459@qq.com
- * @LastEditTime  : 2023-01-16 16:42:51
+ * @LastEditTime  : 2023-01-16 18:28:33
  * @FilePath      : /rancher-deploy-action/src/rancher.ts
  * @Description   : 
  * 
@@ -83,9 +83,44 @@ type Project = {
 };
 
 class Rancher {
+
+    /**
+     * rancherAPI
+     */
+    public readonly rancherApi: string;
+
+    /**
+     * rancherServiceUrl
+     */
+    private readonly rancherServiceUrl: string;
+
+    /**
+     * rancher环境ID
+     */
+    public readonly rancherEnvId: string;
+
+    /**
+     * rancher服务ID
+     */
+    public readonly rancherServiceId: string;
+
+    /**
+     * 请求头
+     */
     private readonly headers: any;
 
-    constructor(private readonly rancherUrlApi: string, rancherAccessKey: string, rancherSecretKey: string) {
+    constructor(private rancherServiceUrlApi: string, rancherAccessKey: string, rancherSecretKey: string) {
+
+        const ma = rancherServiceUrlApi.match(/^(https?:\/\/.*?\/)(v1|v2\-beta)\/projects\/([a-z0-9]+)\/services\/([a-z0-9]+)$/i)
+
+        if (!ma) {
+            throw new Error(`Error: Format of RancherServiceUrlApi:${rancherServiceUrlApi} is wrong`);
+        }
+        this.rancherServiceUrl = rancherServiceUrlApi;
+        this.rancherApi = ma[1] + ma[2];
+        this.rancherEnvId = ma[3];
+        this.rancherServiceId = ma[4];
+
         const token = Buffer.from(rancherAccessKey + ':' + rancherSecretKey).toString('base64');
         this.headers = {
             Accept: 'application/json',
@@ -94,8 +129,12 @@ class Rancher {
         };
     }
 
+    /**
+     * 读取当前APIkey下的所有环境
+     * @returns 
+     */
     async fetchProjectsAsync() {
-        const req = await fetch(`${this.rancherUrlApi}/projects`, {
+        const req = await fetch(`${this.rancherApi}/projects`, {
             method: 'GET',
             headers: this.headers
         });
@@ -105,9 +144,14 @@ class Rancher {
         }>;
     }
 
+    /**
+     * 读取当前环境的所有服务
+     * @param project 
+     * @returns 
+     */
     async fetchProjectServicesAsync(project: Project) {
-        const { links } = project;
-        const req = await fetch(links.services, {
+
+        const req = await fetch(`${this.rancherApi}/projects/${this.rancherEnvId}/services`, {
             method: 'GET',
             headers: this.headers
         });
@@ -118,27 +162,29 @@ class Rancher {
     }
 
 
-    async changeImageAsync(wl: Service, config: DeploymentConfig): Promise<Service> {
-        const { links } = wl;
+    /**
+     * 升级服务
+     */
+    async upgradeServiceByNewDockerImage(dockerImage: string) {
 
-        const req = await fetch(links.self, { method: 'GET', headers: this.headers });
+        const req = await fetch(this.rancherServiceUrl, { method: 'GET', headers: this.headers });
 
         if (req.status === 404) {
-            throw new Error(`Can not get service's info : ${wl.name}`)
+            throw new Error(`Can not get service's info : ${this.rancherServiceUrl}`)
         }
 
         const data = await req.json() as Service;
 
         if (!data.upgrade) {
-            throw new Error(`Can not upgrade service: ${wl.name}`)
+            throw new Error(`Can not upgrade service: ${this.rancherServiceUrl}`)
         }
 
         const { actions } = data;
-        const newImageName = 'docker:' + config.image
+        const newImageName = 'docker:' + dockerImage
 
         try {
             if (data.upgrade.inServiceStrategy.launchConfig.imageUuid.split(":")[1] !== newImageName.split(":")[1]) {
-                throw new Error(`Image registry changed of Service:${wl.name},Please upgrade Mannal`)
+                throw new Error(`Can't upgrade service which image registry has been changed:${this.rancherServiceUrl},Please upgrade Mannal`)
             }
         } catch (error) {
             throw error
@@ -155,7 +201,7 @@ class Rancher {
             } as ServiceUpgrade)
         })
 
-        if (req2.status > 200 && req2.status < 400) {
+        if (req2.status >= 200 && req2.status < 400) {
             return req2.json() as Promise<Service>;
         }
 
