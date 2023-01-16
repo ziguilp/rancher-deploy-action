@@ -1,4 +1,5 @@
-# Action for Github to deploy image in Rancher using Rancher API
+
+# Action for Github to deploy image in Rancher1.6 using Rancher API
 
 ## Inputs
 
@@ -18,20 +19,20 @@
 
 **Required** NAME OF YOUR SERVICE ON RANCHER CLUSTER WHAT YOU WANT DEPLOY.
 
-### `namespaceId`
+### `projectName`
 
-**Optional** ID OF THE NAMESPACE.
+**Optional** 应用名称.
 
 ## Example usage
 
 ```yml
 - name: Rancher Deploy
-  uses: giautm/rancher-deploy-action@v0.1.11
+  uses: ziguilp/docker-image-deploy-in-rancher1.6@v0.1
   with:
     rancherUrlApi: ${{ secrets.RANCHER_URL_API }}
     rancherAccessKey: ${{ secrets.RANCHER_ACCESS_KEY}}
     rancherSecretKey: ${{ secrets.RANCHER_SECRET_KEY }}
     dockerImage: ${{ fromJSON(steps.docker-meta.outputs.json).tags[0] }}
-    serviceName: 'myProject'
-    namespaceId: 'xxxxxxxx'
+    serviceName: 'server'
+    projectName: 'myProject'
 ```

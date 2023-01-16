@@ -1,6 +1,6 @@
-name: 'Rancher Deploy'
-description: 'Action to deploy docker image in rancher'
-author: 'Giau. Tran Minh'
+name: 'Docker Image Deploy In Rancher1.6'
+description: 'Action to deploy docker image in rancher1.6'
+author: 'Giau. Tran Minh & turbo'
 branding:
   icon: 'check'
   color: 'gray-dark'
@@ -18,10 +18,10 @@ inputs:
     description: "Name of your service on rancher cluster what you want deploy"
     required: true
   dockerImage:
-    description: "Docker Image ID"
+    description: "Docker Image"
     required: true
-  namespaceId:
-    description: "ID of the namespace"
+  projectName:
+    description: "Name of project"
     required: false
 runs:
   using: 'node12'

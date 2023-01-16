@@ -36,6 +36,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getInputs = void 0;
+/*
+ * @Author        : turbo 664120459@qq.com
+ * @Date          : 2023-01-16 11:47:35
+ * @LastEditors   : turbo 664120459@qq.com
+ * @LastEditTime  : 2023-01-16 13:10:27
+ * @FilePath      : /rancher-deploy-action/src/context.ts
+ * @Description   :
+ *
+ * Copyright (c) 2023 by turbo 664120459@qq.com, All Rights Reserved.
+ */
 const core = __importStar(__nccwpck_require__(186));
 function getInputs() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -48,7 +58,7 @@ function getInputs() {
                 },
                 serviceName: process.env['SERVICE_NAME'] || '',
                 dockerImage: process.env['DOCKER_IMAGE'] || '',
-                namespaceId: process.env['NAMESPACE_ID']
+                projectName: process.env['PROJECT_NAME'] || ''
             };
         }
         return {
@@ -59,7 +69,7 @@ function getInputs() {
             },
             serviceName: core.getInput('serviceName'),
             dockerImage: core.getInput('dockerImage'),
-            namespaceId: core.getInput('namespaceId')
+            projectName: core.getInput('projectName')
         };
     });
 }
@@ -105,30 +115,44 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+/*
+ * @Author        : turbo 664120459@qq.com
+ * @Date          : 2023-01-16 11:47:35
+ * @LastEditors   : turbo 664120459@qq.com
+ * @LastEditTime  : 2023-01-16 16:51:50
+ * @FilePath      : /rancher-deploy-action/src/main.ts
+ * @Description   :
+ *
+ * Copyright (c) 2023 by turbo 664120459@qq.com, All Rights Reserved.
+ */
 const core = __importStar(__nccwpck_require__(186));
 const context_1 = __nccwpck_require__(842);
 const rancher_1 = __importDefault(__nccwpck_require__(604));
 (() => __awaiter(void 0, void 0, void 0, function* () {
-    const { rancher, dockerImage, serviceName, namespaceId } = yield (0, context_1.getInputs)();
+    const { rancher, dockerImage, projectName, serviceName } = yield (0, context_1.getInputs)();
     const client = new rancher_1.default(rancher.urlApi, rancher.accessKey, rancher.secretKey);
     const { data: projects } = yield client.fetchProjectsAsync();
     for (const project of projects) {
-        const { data: workloads } = yield client.fetchProjectWorkloadsAsync(project);
-        const workload = workloads.find(({ name, namespaceId: nsId }) => name === serviceName && (!namespaceId || namespaceId === nsId));
-        if (workload) {
-            const result = yield client.changeImageAsync(workload, {
+        if (project.name != projectName)
+            continue;
+        const { data: services } = yield client.fetchProjectServicesAsync(project);
+        const service = services.find(({ name }) => name === serviceName);
+        if (service) {
+            const result = yield client.changeImageAsync(service, {
                 name: serviceName,
                 image: dockerImage
             });
-            core.info(`Image changed for ${result.id}`);
+            core.info(`${projectName}-${serviceName} upgrade image to: ${result.launchConfig.imageUuid}`);
+            core.info(`Upgrade done， please confirm it in rancher UI`);
+            core.setOutput('projectName', projectName);
+            core.setOutput('serviceName', serviceName);
+            core.setOutput('dockerImage', dockerImage);
+            core.setOutput('status', 'success');
             return;
         }
-    }
-    if (namespaceId) {
-        throw new Error(`Couldn't found workload "${serviceName}" in namespace "${namespaceId}"`);
-    }
-    else {
-        throw new Error(`Couldn't found workload "${serviceName}"`);
+        else {
+            throw new Error(`Couldn't found service "${serviceName}" in project "${projectName}"`);
+        }
     }
 }))().catch(err => {
     core.setFailed(err.message);
@@ -155,6 +179,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+/*
+ * @Author        : turbo 664120459@qq.com
+ * @Date          : 2023-01-16 11:47:35
+ * @LastEditors   : turbo 664120459@qq.com
+ * @LastEditTime  : 2023-01-16 16:42:51
+ * @FilePath      : /rancher-deploy-action/src/rancher.ts
+ * @Description   :
+ *
+ * Copyright (c) 2023 by turbo 664120459@qq.com, All Rights Reserved.
+ */
 const node_fetch_1 = __importDefault(__nccwpck_require__(843));
 class Rancher {
     constructor(rancherUrlApi, rancherAccessKey, rancherSecretKey) {
@@ -175,10 +209,10 @@ class Rancher {
             return req.json();
         });
     }
-    fetchProjectWorkloadsAsync(project) {
+    fetchProjectServicesAsync(project) {
         return __awaiter(this, void 0, void 0, function* () {
             const { links } = project;
-            const req = yield (0, node_fetch_1.default)(links.workloads, {
+            const req = yield (0, node_fetch_1.default)(links.services, {
                 method: 'GET',
                 headers: this.headers
             });
@@ -190,31 +224,43 @@ class Rancher {
             const { links } = wl;
             const req = yield (0, node_fetch_1.default)(links.self, { method: 'GET', headers: this.headers });
             if (req.status === 404) {
-                const data = {
-                    containers: [
-                        Object.assign(Object.assign({}, config), { imagePullPolicy: 'Always' })
-                    ],
-                    name: config.name,
-                    namespaceId: wl.namespaceId
-                };
-                const req2 = yield (0, node_fetch_1.default)(links.update, {
-                    method: 'POST',
-                    headers: this.headers,
-                    body: JSON.stringify(data)
-                });
+                throw new Error(`Can not get service's info : ${wl.name}`);
+            }
+            const data = yield req.json();
+            if (!data.upgrade) {
+                throw new Error(`Can not upgrade service: ${wl.name}`);
+            }
+            const { actions } = data;
+            const newImageName = 'docker:' + config.image;
+            try {
+                if (data.upgrade.inServiceStrategy.launchConfig.imageUuid.split(":")[1] !== newImageName.split(":")[1]) {
+                    throw new Error(`Image registry changed of Service:${wl.name},Please upgrade Mannal`);
+                }
+            }
+            catch (error) {
+                throw error;
+            }
+            data.upgrade.inServiceStrategy.launchConfig.imageUuid = newImageName;
+            const req2 = yield (0, node_fetch_1.default)(actions.upgrade, {
+                method: 'POST',
+                headers: this.headers,
+                body: JSON.stringify({
+                    inServiceStrategy: data.upgrade.inServiceStrategy,
+                    toServiceStrategy: data.upgrade.toServiceStrategy || null
+                })
+            });
+            if (req2.status > 200 && req2.status < 400) {
                 return req2.json();
             }
-            else {
-                const data = yield req.json();
-                data.containers[0].image = config.image;
-                const { actions } = data;
-                const req2 = yield (0, node_fetch_1.default)(actions.redeploy, {
-                    method: 'PUT',
-                    headers: this.headers,
-                    body: JSON.stringify(data)
-                });
-                return req2.json();
+            try {
+                const r = yield req2.json();
+                if (r.code) {
+                    throw new Error(`Service Upgrade failed: ${r.code}`);
+                }
             }
+            catch (error) {
+            }
+            throw new Error(`Service Upgrade failed: ${yield req2.text()}`);
         });
     }
 }
