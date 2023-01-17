@@ -40,7 +40,7 @@ exports.getInputs = void 0;
  * @Author        : turbo 664120459@qq.com
  * @Date          : 2023-01-16 11:47:35
  * @LastEditors   : turbo 664120459@qq.com
- * @LastEditTime  : 2023-01-16 17:39:16
+ * @LastEditTime  : 2023-01-17 16:10:49
  * @FilePath      : /rancher-deploy-action/src/context.ts
  * @Description   :
  *
@@ -56,7 +56,7 @@ function getInputs() {
                     secretKey: process.env['RANCHER_SECRET_KEY'] || '',
                     serviceInfoApiUrl: process.env['RANCHER_SERVICE_INFO_API_URL'] || ''
                 },
-                dockerImage: process.env['DOCKER_IMAGE'] || '',
+                dockerImage: process.env['DOCKER_IMAGE'] || ''
             };
         }
         return {
@@ -115,7 +115,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
  * @Author        : turbo 664120459@qq.com
  * @Date          : 2023-01-16 11:47:35
  * @LastEditors   : turbo 664120459@qq.com
- * @LastEditTime  : 2023-01-16 18:27:16
+ * @LastEditTime  : 2023-01-17 16:09:46
  * @FilePath      : /rancher-deploy-action/src/main.ts
  * @Description   :
  *
@@ -126,6 +126,7 @@ const context_1 = __nccwpck_require__(842);
 const rancher_1 = __importDefault(__nccwpck_require__(604));
 (() => __awaiter(void 0, void 0, void 0, function* () {
     const { rancher, dockerImage } = yield (0, context_1.getInputs)();
+    console.log(rancher, dockerImage);
     const client = new rancher_1.default(rancher.serviceInfoApiUrl, rancher.accessKey, rancher.secretKey);
     const result = yield client.upgradeServiceByNewDockerImage(dockerImage);
     core.info(`Success:upgrade image to: ${result.launchConfig.imageUuid}`);
@@ -162,7 +163,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
  * @Author        : turbo 664120459@qq.com
  * @Date          : 2023-01-16 11:47:35
  * @LastEditors   : turbo 664120459@qq.com
- * @LastEditTime  : 2023-01-16 18:28:33
+ * @LastEditTime  : 2023-01-17 16:10:32
  * @FilePath      : /rancher-deploy-action/src/rancher.ts
  * @Description   :
  *
@@ -184,7 +185,7 @@ class Rancher {
         this.headers = {
             Accept: 'application/json',
             'Content-Type': 'application/json',
-            Authorization: 'Basic ' + token,
+            Authorization: 'Basic ' + token
         };
     }
     /**
@@ -223,14 +224,20 @@ class Rancher {
             if (req.status === 404) {
                 throw new Error(`Can not get service's info : ${this.rancherServiceUrl}`);
             }
-            const data = yield req.json();
+            if (req.status !== 200) {
+                throw new Error(`Error in get service's info : ${this.rancherServiceUrl}`);
+            }
+            const data = (yield req.json());
             if (!data.upgrade) {
                 throw new Error(`Can not upgrade service: ${this.rancherServiceUrl}`);
             }
             const { actions } = data;
+            if (!actions.upgrade) {
+                throw new Error(`Can not upgrade service: Upgrade Action Is Not Available, Maybe you have not confirm finshupgrade`);
+            }
             const newImageName = 'docker:' + dockerImage;
             try {
-                if (data.upgrade.inServiceStrategy.launchConfig.imageUuid.split(":")[1] !== newImageName.split(":")[1]) {
+                if (data.upgrade.inServiceStrategy.launchConfig.imageUuid.split(':')[1] !== newImageName.split(':')[1]) {
                     throw new Error(`Can't upgrade service which image registry has been changed:${this.rancherServiceUrl},Please upgrade Mannal`);
                 }
             }
@@ -250,12 +257,13 @@ class Rancher {
                 return req2.json();
             }
             try {
-                const r = yield req2.json();
+                const r = (yield req2.json());
                 if (r.code) {
                     throw new Error(`Service Upgrade failed: ${r.code}`);
                 }
             }
             catch (error) {
+                throw new Error(`Service Upgrade failed: ${error.message}`);
             }
             throw new Error(`Service Upgrade failed: ${yield req2.text()}`);
         });
